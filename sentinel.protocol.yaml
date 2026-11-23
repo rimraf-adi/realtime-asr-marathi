@@ -1,0 +1,26 @@
+schema_version: '1.0'
+space: https://raw.githubusercontent.com/rimraf-adi/sentinel-hub/main
+org: community
+integrations:
+- name: xai
+  version: 1.0.0
+  source: sentinel-hub
+  description: Axiomatic Integrated Gradients, SVD Rank, Loss Landscape & Remediation
+  enabled: true
+  config: {}
+- name: gradient-flow
+  version: 1.0.0
+  source: sentinel-hub
+  description: Live forward and backward gradient flow inspection
+  enabled: true
+  config: {}
+- name: telegram-notifier
+  version: 1.0.0
+  source: https://raw.githubusercontent.com/rimraf-adi/sentinel-hub/main
+  description: Token-configurable Telegram notifications supporting custom autonomous agent dispatches and hardcoded metric-triggered alerts (NaN/Inf, loss spikes, grad norms, new bests, and targets).
+  enabled: true
+  config: {}
+policies:
+  min_representation_rank: 0.25
+  max_gradient_norm: 10.0
+  enforce_remediation: true

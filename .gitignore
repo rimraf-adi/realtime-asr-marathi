@@ -1,0 +1,36 @@
+# Model checkpoints and binary weights
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.bin
+*.onnx
+experiments/*/checkpoints/
+models/130m-moe-stage3-sft/
+
+# Python virtual environments & bytecode
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# Local experiment tracking & Sentinel runtime hub
+mlruns/
+.sentinel/
+wandb/
+
+# Environment & secrets
+.env
+.env.*
+
+# OS & editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.tmp
