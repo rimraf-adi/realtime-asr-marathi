@@ -164,10 +164,25 @@ Standard `mT5-small` contains 300M parameters. Roughly 256M parameters reside in
 2. Slice the pretrained `shared.weight` and `lm_head.weight` rows for the kept token IDs.
 3. Result: Model size drops from **300M to ~65M parameters** with zero loss of Indic pretraining weights.
 
-### 6.2 `ByT5-small` Comparison Track
-`ByT5-small` operates directly on UTF-8 bytes (384 vocabulary tokens). It eliminates subword fragmentation across scripts and code-switched rural loanwords. Benchmark both decoders directly with the exact same SOS-Bridge.
+### 6.2 Pattern-Learned Hierarchical MoE Conversion (`HMoE-mT5`)
+For higher multilingual capacity at equal active FLOPs, convert the pruned `mT5-small` decoder into a **Pattern-Learned Hierarchical Mixture-of-Experts (`HMoE-mT5`)**. This backbone uses established sparse upcycling and hierarchical routing methods (cited in Section 11) so the **SOS-Bridge** stays the crisp novel contribution.
 
-### 6.3 Chunk-Causal Monotonic Cross-Attention
+- **Two-Level Emergent Routing (Zero Hard Language Labels):**
+  - **Shared Expert Trunk (Always Active, $d_{\text{ff}} = 512$):** Captures universal syntax, numerals, and punctuation (following DeepSeekMoE; Dai et al., 2024).
+  - **Level-1 Coarse Router ($M = 2$ or $3$ latent groups, Top-1):** Learns coarse language-family clusters purely from input patterns (Jordan & Jacobs, 1994; Bandarkar et al., ICLR 2026).
+  - **Level-2 Fine Router ($K = 3$ or $4$ experts per group, $d_{\text{ff}} = 512$, Top-1):** Specializes into regional dialect and sub-language experts inside the chosen coarse branch.
+- **Equal Active Compute:** Each token activates `512 (shared) + 512 (selected fine) = 1024` FFN channels — identical to dense `mT5-small`.
+- **Evidence-Backed Layer Placement (Bandarkar et al., ICLR 2026):**
+  - In the 6-layer `mT5-small` decoder (`L0..L5`), keep **middle layers (`L2, L3`) dense** as a shared cross-lingual hub so low-resource rural dialects benefit from high-resource transfer.
+  - Upcycle **outer layers (`L0, L1, L4, L5`)** into Hierarchical MoE for surface script/phonology and final dialect generation.
+- **Sparse Upcycling Initialization (Komatsuzaki et al., ICLR 2023):** Clone pretrained `mT5` GeGLU weights (`wi_0, wi_1, wo`) into the shared trunk and each fine expert with small Gaussian noise ($\sigma = 10^{-3}$) to break symmetry.
+- **Auxiliary Routing Stability Loss:** Add coupled coarse + fine Switch load-balancing loss (Fedus et al., JMLR 2022) and router z-loss:
+  $$\mathcal{L}_{\text{hmoe}} = \lambda_1\,\mathcal{L}_{\text{bal}}^{\text{coarse}} + \lambda_2\,\mathcal{L}_{\text{bal}}^{\text{fine}} + \lambda_z\,\mathcal{L}_{\text{z-loss}}$$
+
+### 6.3 `ByT5-small` Comparison Track
+`ByT5-small` operates directly on UTF-8 bytes (384 vocabulary tokens). It eliminates subword fragmentation across scripts and code-switched rural loanwords. Benchmark dense pruned `mT5-small`, `HMoE-mT5`, and `ByT5-small` directly with the exact same SOS-Bridge.
+
+### 6.4 Chunk-Causal Monotonic Cross-Attention
 Standard `mT5` cross-attention sees all encoder frames $1..T'$. Modify the decoder cross-attention mask for streaming:
 1. Segment each training transcript into chunk targets $Y^{(1)}, Y^{(2)}, \dots, Y^{(C)}$ using forced CTC alignments from the causal encoder.
 2. Append a `<WAIT>` token to the end of each chunk target $Y^{(c)}$ (except the final chunk, which ends with `<EOS>`).
@@ -370,14 +385,16 @@ Include offline reference models (Offline 130M MoE, Offline IndicConformer-600M,
    - Remove decoupled spherical direction–magnitude head (standard linear output)
    - Remove radial calibration loss ($\lambda_{\text{norm}} = 0$)
    - Remove text-encoder pooled alignment ($\lambda_{\text{align}} = 0$)
-   - Compare `Indic-Pruned mT5-small` vs. `ByT5-small`
+   - Compare `Indic-Pruned mT5-small` (dense) vs. `HMoE-mT5` (pattern-learned hierarchical MoE) vs. `ByT5-small`
 2. **Geometric Proof Figure (Critical for Reviewers):**
    Plot layer-wise **Cosine Similarity** AND **L2 Norm Ratio** ($\|z_t\|_2 / \|h_{\text{text}}\|_2$) for Plain FFN vs. SMEAR-MoE vs. SOS-Bridge. Demonstrate directly that SOS-Bridge closes the magnitude divergence gap.
 3. **Interference Proof Figure:**
    Plot **Forgetting Delta** ($\Delta\text{WER}$ on seen languages) vs. **Adaptation Gain** ($\Delta\text{WER}$ on a new held-out rural dialect) when adapting Plain FFN vs. SMEAR-MoE vs. SOS-Bridge ($W_{\text{shift}}$ only).
-4. **Streaming Latency–Accuracy Pareto Curve:**
+4. **Emergent Family-Routing Diagnostic (`HMoE-mT5`):**
+   Plot the Level-1 coarse router activation matrix across all 9 RESPIN languages (`mr, hi, bh, ch, mg, mt, bn, kn, te`) to verify whether language-family specialization emerges without hard labels (consistent with Bandarkar et al., ICLR 2026).
+5. **Streaming Latency–Accuracy Pareto Curve:**
    Plot WER vs. chunk latency (`160 ms`, `320 ms`, `640 ms`, `Offline`) alongside **Streaming RTF** and **Average Lagging (AL)**.
-5. **Statistical Significance:**
+6. **Statistical Significance:**
    Report speaker-cluster 95% bootstrap confidence intervals and MAPSSWE p-values across all dialect and language slices.
 
 ---
@@ -385,7 +402,7 @@ Include offline reference models (Offline 130M MoE, Offline IndicConformer-600M,
 ## 10. Two-Phase Execution Checklist
 
 ### Phase 1: Fast Marathi Proof-of-Concept (Days 1–5)
-1. Prune `mT5-small` vocabulary to Devanagari + Latin (~12k–20k tokens) and compute $\mu_{\text{text}}, \sigma_{\text{text}}$.
+1. Prune `mT5-small` vocabulary to Devanagari + Latin (~12k–20k tokens), upcycle outer layers (`L0, L1, L4, L5`) to `HMoE-mT5`, and compute $\mu_{\text{text}}, \sigma_{\text{text}}$.
 2. Build chunk-causal cross-attention wrapper and `<WAIT>` CTC-aligned batch collator.
 3. Attach `SOSBridge` to your Causal Conformer encoder and train on balanced Marathi (RESPIN + KathBath + OpenSLR + CommonVoice + IndicVoices).
 4. Run head-to-head comparison: `Causal CTC` vs. `Plain FFN` vs. `SMEAR-MoE` vs. `SOS-Bridge` on RESPIN D1–D4, KathBath, and FLEURS.
@@ -397,5 +414,18 @@ Include offline reference models (Offline 130M MoE, Offline IndicConformer-600M,
 1. Swap in a multilingual causal speech encoder (chunked Whisper / MMS / IndicConformer encoder) alongside your Conformer.
 2. Train and evaluate across the 9 RESPIN Indic languages (Indo-Aryan + Dravidian).
 3. Run the few-shot $W_{\text{shift}}$-only adaptation experiment on held-out rural languages/dialects.
-4. Generate all diagnostic plots (Norm Drift, Forgetting vs. Adaptation, Latency–WER Pareto) and bootstrap significance tables.
+4. Generate all diagnostic plots (Norm Drift, Forgetting vs. Adaptation, Emergent HMoE Family Routing, Latency–WER Pareto) and bootstrap significance tables.
 5. Draft the manuscript for **Computer Speech & Language** or **IEEE/ACM TASLP**.
+
+---
+
+## 11. References (HMoE-mT5 Backbone and MoE Baselines)
+
+- **Jordan, M. I., & Jacobs, R. A. (1994).** Hierarchical Mixtures of Experts and the EM Algorithm. *Neural Computation*, 6(2), 181–214.
+- **Fedus, W., Zoph, B., & Shazeer, N. (2022).** Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity. *Journal of Machine Learning Research (JMLR)*, 23(120), 1–39.
+- **NLLB Team, Costa-jussà, M. R., et al. (2022).** No Language Left Behind: Scaling Human-Centered Machine Translation. *arXiv:2207.04672*.
+- **Komatsuzaki, A., et al. (2023).** Sparse Upcycling: Training Mixture-of-Experts from Dense Checkpoints. *ICLR 2023*.
+- **Dai, D., et al. (2024).** DeepSeekMoE: Towards Ultimate Expert Specialization in Mixture-of-Experts Language Models. *arXiv:2401.06066*.
+- **Ma, R., et al. (2025).** LegoSLM: Connecting LLM with Speech Encoder using CTC Posteriors. *arXiv:2505.11352*.
+- **Bandarkar, L., Yang, C., Fayyaz, M., Hu, J., & Peng, N. (2026).** Multilingual Routing in Mixture-of-Experts. *ICLR 2026* (*arXiv:2510.04694*).
+- **Pandey, I., et al. (2026).** Dynamic Multi-Expert Projectors with Stabilized Routing for Multilingual Speech Recognition (SMEAR-MoE). *arXiv:2601.19451*.

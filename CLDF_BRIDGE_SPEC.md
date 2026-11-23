@@ -162,7 +162,16 @@ Let $c$ be any audio chunk index:
 - **Indic-Pruned `mT5-small`:** Filter the 250,112-token vocabulary down to ~20,000 Indic + Latin tokens (Devanagari, Bengali, Kannada, Telugu, English loanwords, digits, `<WAIT>`). This shrinks `mT5-small` from **300M to ~65M parameters**.
 - **`ByT5-small` Track:** Keep the native 384-token UTF-8 byte vocabulary (plus `<WAIT>`). Byte-level decoding avoids subword shattering during rapid Marathi–English or Hindi–Bhojpuri code-switching.
 
-### 6.2 Cross-Attention Layer Modification
+### 6.2 Pattern-Learned Hierarchical MoE Conversion (`HMoE-mT5`)
+Convert the pruned `mT5-small` decoder into a **Pattern-Learned Hierarchical Mixture-of-Experts (`HMoE-mT5`)** using established sparse upcycling and hierarchical routing (cited in Section 12) to increase multilingual capacity at constant active FLOPs:
+- **Two-Level Emergent Routing (Zero Hard Language Labels):**
+  - **Shared Expert Trunk (Always Active, $d_{\text{ff}} = 512$):** Preserves shared grammar and punctuation (DeepSeekMoE; Dai et al., 2024).
+  - **Level-1 Coarse Router ($M = 2$ or $3$ latent groups, Top-1):** Discovers coarse language-family clusters purely from acoustic-text patterns (Jordan & Jacobs, 1994; Bandarkar et al., ICLR 2026).
+  - **Level-2 Fine Router ($K = 3$ or $4$ experts per group, $d_{\text{ff}} = 512$, Top-1):** Specializes into dialect and sub-language experts inside the chosen coarse branch.
+- **Equal Active Compute:** Each token executes `512 (shared) + 512 (fine) = 1024` FFN channels — identical to dense `mT5-small`.
+- **Evidence-Backed Layer Placement (Bandarkar et al., ICLR 2026):** Keep **middle decoder layers (`L2, L3`) dense** as a shared cross-lingual hub, and upcycle **outer layers (`L0, L1, L4, L5`)** via Sparse Upcycling (Komatsuzaki et al., ICLR 2023) with coupled coarse/fine Switch load-balancing loss (Fedus et al., JMLR 2022) and router z-loss.
+
+### 6.3 Cross-Attention Layer Modification
 In each feedback layer $l \in \mathcal{L}_{\text{fb}}$ of the `mT5`/`ByT5` decoder:
 1. Replace the static shared `encoder_hidden_states` input with the layer-specific modulated states $H^{(1..c, l)}$.
 2. Apply a block-lower-triangular **Chunk-Causal Cross-Attention Mask** $M_{\text{cross}} \in \{0, -\infty\}^{N_{\text{dec}} \times T'}$ so token $n$ in chunk $c$ attends only to bridge frames $t' \le \text{end}(c)$.
@@ -386,14 +395,16 @@ Keep the causal speech encoder and chunk-causal decoder fixed. Compare seven sys
    - Chunk-level feedback only (shared single modulation before layer 0) vs. **Layer-wise depth feedback** ($l \in \{1, 3, 5\}$)
    - Remove Feedback Dropout (`p_fb_drop = 0`)
    - EMA decay sweep ($\beta \in \{0.0, 0.5, 0.7, 0.9\}$)
-   - `Indic-Pruned mT5-small` vs. `ByT5-small`
+   - `Indic-Pruned mT5-small` (dense) vs. `HMoE-mT5` (pattern-learned hierarchical MoE) vs. `ByT5-small`
 2. **Feedback Activation Trajectory Plot (Headline Reviewer Figure):**
    Plot $\|\tanh(\alpha_l)\,\Delta H^{(c, l)}\|_2$ over streaming time $t$ on a mid-utterance dialect or code-switch utterance. Show that feedback modulation spikes cleanly right after a script or dialect shift begins.
 3. **Chunk-Position WER Curve (Cold Start vs. Steady State):**
    Plot WER on the first 2 seconds of an utterance vs. seconds 2–10. Show that CLDF-Bridge progressively outperforms open-loop FFN and SMEAR-MoE as causal feedback accumulates.
-4. **Streaming Latency–Accuracy Pareto Curve:**
+4. **Emergent Family-Routing Diagnostic (`HMoE-mT5`):**
+   Plot the Level-1 coarse router activation matrix across all 9 RESPIN languages (`mr, hi, bh, ch, mg, mt, bn, kn, te`) to verify unsupervised language-family clustering without hard labels (consistent with Bandarkar et al., ICLR 2026).
+5. **Streaming Latency–Accuracy Pareto Curve:**
    Report WER, **Streaming RTF**, **Average Lagging (AL)**, and per-chunk compute overhead across `{160 ms, 320 ms, 640 ms, Offline}`.
-5. **Statistical Significance:**
+6. **Statistical Significance:**
    Report speaker-cluster 95% bootstrap confidence intervals and MAPSSWE p-values across all dialect and language slices.
 
 ---
@@ -410,7 +421,7 @@ The `CLDF-Bridge` and the `SOS-Bridge` (defined in `SOS_BRIDGE_SPEC.md`) are mut
 ## 11. Two-Phase Execution Checklist
 
 ### Phase 1: Fast Marathi Streaming Proof-of-Concept (Days 1–5)
-1. Prune `mT5-small` vocabulary to Devanagari + Latin (~12k–20k tokens) and add the `<WAIT>` token.
+1. Prune `mT5-small` vocabulary to Devanagari + Latin (~12k–20k tokens), upcycle outer layers (`L0, L1, L4, L5`) to `HMoE-mT5`, and add the `<WAIT>` token.
 2. Implement the block-lower-triangular chunk-causal cross-attention wrapper on `T5Stack`.
 3. Attach `ClosedLoopFeedbackBridge` to your Causal Conformer encoder and run Stage 1 (open-loop warmup) followed by Stage 2 (closed-loop activation) on balanced Marathi data (RESPIN + KathBath + OpenSLR + CommonVoice).
 4. Compare `Causal CTC` vs. `Plain Open-Loop FFN` vs. `SMEAR-MoE` vs. `CLDF-Bridge` on RESPIN D1–D4, KathBath, and FLEURS.
@@ -419,5 +430,18 @@ The `CLDF-Bridge` and the `SOS-Bridge` (defined in `SOS_BRIDGE_SPEC.md`) are mut
 ### Phase 2: Pan-Indic Multilingual Shift Suite (Days 6–14)
 1. Pair `CLDF-Bridge` with a multilingual causal speech encoder (chunked Whisper / MMS / IndicConformer encoder) alongside your Conformer.
 2. Train and evaluate across all 9 RESPIN Indic languages (`mr, hi, bh, ch, mg, mt, bn, kn, te`) plus stitched mid-stream language-switch stress tests.
-3. Generate the Feedback Activation Trajectory plot, Cold-Start vs. Late-Chunk WER curve, Latency–WER Pareto plot, and bootstrap significance tables.
+3. Generate the Feedback Activation Trajectory plot, Cold-Start vs. Late-Chunk WER curve, Emergent HMoE Family Routing heatmap, Latency–WER Pareto plot, and bootstrap significance tables.
 4. Draft the manuscript for **Computer Speech & Language** or **IEEE/ACM TASLP**.
+
+---
+
+## 12. References (HMoE-mT5 Backbone and MoE Baselines)
+
+- **Jordan, M. I., & Jacobs, R. A. (1994).** Hierarchical Mixtures of Experts and the EM Algorithm. *Neural Computation*, 6(2), 181–214.
+- **Fedus, W., Zoph, B., & Shazeer, N. (2022).** Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity. *Journal of Machine Learning Research (JMLR)*, 23(120), 1–39.
+- **NLLB Team, Costa-jussà, M. R., et al. (2022).** No Language Left Behind: Scaling Human-Centered Machine Translation. *arXiv:2207.04672*.
+- **Komatsuzaki, A., et al. (2023).** Sparse Upcycling: Training Mixture-of-Experts from Dense Checkpoints. *ICLR 2023*.
+- **Dai, D., et al. (2024).** DeepSeekMoE: Towards Ultimate Expert Specialization in Mixture-of-Experts Language Models. *arXiv:2401.06066*.
+- **Ma, R., et al. (2025).** LegoSLM: Connecting LLM with Speech Encoder using CTC Posteriors. *arXiv:2505.11352*.
+- **Bandarkar, L., Yang, C., Fayyaz, M., Hu, J., & Peng, N. (2026).** Multilingual Routing in Mixture-of-Experts. *ICLR 2026* (*arXiv:2510.04694*).
+- **Pandey, I., et al. (2026).** Dynamic Multi-Expert Projectors with Stabilized Routing for Multilingual Speech Recognition (SMEAR-MoE). *arXiv:2601.19451*.
