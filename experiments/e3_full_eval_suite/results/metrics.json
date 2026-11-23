@@ -1,0 +1,95 @@
+{
+  "respin_mr": {
+    "wer": 35.86,
+    "cer": 8.84,
+    "n_utts": 2170,
+    "total_audio_secs": 10949.4,
+    "wall_secs": 61.48,
+    "rtf": 0.0056,
+    "rtfx": 178.6,
+    "slices": {
+      "dialect": {
+        "Standard (D3)": {
+          "wer": 25.65,
+          "cer": 6.25,
+          "n": 555
+        },
+        "Malvani (D1)": {
+          "wer": 42.19,
+          "cer": 10.66,
+          "n": 559
+        },
+        "Varhadi (D4)": {
+          "wer": 36.44,
+          "cer": 9.14,
+          "n": 516
+        },
+        "Ahirani (D2)": {
+          "wer": 38.6,
+          "cer": 9.14,
+          "n": 540
+        }
+      }
+    }
+  },
+  "kathbath_mr": {
+    "wer": 66.71,
+    "cer": 19.87,
+    "n_utts": 2378,
+    "total_audio_secs": 15044.28,
+    "wall_secs": 23.28,
+    "rtf": 0.0015,
+    "rtfx": 666.7,
+    "slices": {
+      "gender": {
+        "Female": {
+          "wer": 61.57,
+          "cer": 16.57,
+          "n": 1255
+        },
+        "Male": {
+          "wer": 72.57,
+          "cer": 23.63,
+          "n": 1123
+        }
+      },
+      "district": {
+        "unknown": {
+          "wer": 66.71,
+          "cer": 19.87,
+          "n": 2378
+        }
+      }
+    }
+  },
+  "fleurs_mr": {
+    "wer": 62.88,
+    "cer": 20.64,
+    "n_utts": 1015,
+    "total_audio_secs": 13883.28,
+    "wall_secs": 95.26,
+    "rtf": 0.0069,
+    "rtfx": 144.9,
+    "slices": {
+      "gender": {
+        "MALE": {
+          "wer": 70.55,
+          "cer": 24.81,
+          "n": 671
+        },
+        "FEMALE": {
+          "wer": 47.81,
+          "cer": 12.45,
+          "n": 344
+        }
+      }
+    }
+  },
+  "streaming_benchmark": {
+    "chunk_size_ms": 160,
+    "n_sample_utts": 100,
+    "streaming_rtf": 0.4063,
+    "streaming_rtfx": 2.5,
+    "avg_utterance_latency_ms": 2346.49
+  }
+}

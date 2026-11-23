@@ -1,0 +1,39 @@
+# ==============================================================================
+# Full Benchmark Evaluation Suite for Causal Streaming Conformer (E3)
+# ==============================================================================
+# Evaluates checkpoint across all standardized Marathi benchmarks:
+# 1. IISc RESPIN Held-out Test Set (Multi-Dialect: D1 Malvani, D2 Ahirani, D3 Standard, D4 Varhadi)
+# 2. KathBath Marathi Test Set
+# 3. Google FLEURS Marathi Test Set
+#
+# Regimes evaluated:
+# - Full-Utterance Causal Inference (zero-future lookahead)
+# - Incremental Streaming Chunk Inference (160ms chunks)
+# ==============================================================================
+
+experiment_name: "e3_full_eval_suite"
+checkpoint_path: "d:/realtime/experiments/e3_rl_guided_distill/checkpoints/causal_moe_step_50000.pt"
+vocab_path: "d:/realtime/models/marathi-conformer-130m-moe/vocab.json"
+model_architecture: "CausalStreamingASRModel"
+
+benchmarks:
+  - id: "respin_mr"
+    name: "IISc RESPIN Marathi Multi-Dialect Test Set"
+    path: "D:/dialect-norm/IISc_RESPIN_test_mr/IISc_RESPIN_test_mr"
+    expected_utts: 2170
+  - id: "kathbath_mr"
+    name: "AI4Bharat KathBath Marathi Test Set"
+    hf_dataset: "ai4bharat/Kathbath"
+  - id: "fleurs_mr"
+    name: "Google FLEURS Marathi Test Set"
+    hf_dataset: "google/fleurs"
+
+streaming_evaluation:
+  chunk_sizes_ms: [160]  # Standard streaming chunk size
+
+metrics:
+  - wer
+  - cer
+  - per_dialect_wer
+  - rtf
+  - latency_ms

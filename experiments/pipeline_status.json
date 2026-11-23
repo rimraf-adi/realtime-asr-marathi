@@ -1,0 +1,30 @@
+{
+  "stage1_causal_pretrain": {
+    "status": "completed",
+    "updated_at": "2026-11-20 05:22:53",
+    "timestamp": 1795132373.3026924,
+    "exit_code": 0,
+    "elapsed_min": 792.9
+  },
+  "stage2_causal_moe": {
+    "status": "completed",
+    "updated_at": "2026-11-22 11:48:23",
+    "timestamp": 1795328303.8147528,
+    "exit_code": 0,
+    "elapsed_min": 3265.5
+  },
+  "stage3_final_alignment": {
+    "status": "completed",
+    "updated_at": "2026-11-22 20:05:29",
+    "timestamp": 1795358129.8022115,
+    "exit_code": 0,
+    "elapsed_min": 495.6
+  },
+  "e3_full_eval_suite": {
+    "status": "completed",
+    "updated_at": "2026-11-22 20:17:33",
+    "timestamp": 1795358853.0707874,
+    "exit_code": 0,
+    "elapsed_min": 11.0
+  }
+}

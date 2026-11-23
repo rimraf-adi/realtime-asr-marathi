@@ -1,0 +1,32 @@
+
+--- Pipeline launching e3_full_eval_suite at 2026-11-22 20:05:29 ---
+Traceback (most recent call last):
+  File "D:\realtime\tasks\run_e3_eval.py", line 109, in <module>
+    class CausalASREvaluator:
+  File "D:\realtime\tasks\run_e3_eval.py", line 112, in CausalASREvaluator
+    def __init__(self, checkpoint_path: str, vocab_path: str, device: str = "cuda", left_context: Optional[int] = 128):
+                                                                                                  ^^^^^^^^
+NameError: name 'Optional' is not defined
+
+--- Pipeline launching e3_full_eval_suite at 2026-11-22 20:06:31 ---
+[2026-11-22 14:36:35 UTC] ==================================================================
+[2026-11-22 14:36:35 UTC] STARTING FULL BENCHMARK EVALUATION SUITE: EXPERIMENT E3
+[2026-11-22 14:36:35 UTC] ==================================================================
+[2026-11-22 14:36:35 UTC] Loading fine-tuned checkpoint: D:\realtime\experiments\stage3_final_alignment\checkpoints\best_model.pt
+[2026-11-22 14:36:51 UTC] Model successfully loaded on GPU.
+[2026-11-22 14:36:51 UTC] Evaluating on IISc RESPIN Multi-Dialect Test Set (2,170 utterances)...
+[2026-11-22 14:37:31 UTC] Loaded 2170 RESPIN utterances.
+[2026-11-22 14:38:33 UTC] --> RESPIN Aggregate WER: 35.86% | CER: 8.84%
+[2026-11-22 14:38:33 UTC]     Ahirani (D2): WER=38.6%, CER=9.14% (n=540)
+[2026-11-22 14:38:33 UTC]     Malvani (D1): WER=42.19%, CER=10.66% (n=559)
+[2026-11-22 14:38:33 UTC]     Standard (D3): WER=25.65%, CER=6.25% (n=555)
+[2026-11-22 14:38:33 UTC]     Varhadi (D4): WER=36.44%, CER=9.14% (n=516)
+[2026-11-22 14:38:33 UTC] Evaluating on KathBath Marathi Test Set...
+[2026-11-22 14:40:03 UTC] Loaded 2378 KathBath utterances.
+[2026-11-22 14:40:28 UTC] --> KathBath Aggregate WER: 66.71% | CER: 19.87%
+[2026-11-22 14:40:28 UTC] Evaluating on Google FLEURS Marathi Test Set...
+[2026-11-22 14:41:58 UTC] Loaded 1015 FLEURS utterances.
+[2026-11-22 14:43:34 UTC] --> FLEURS Aggregate WER: 62.88% | CER: 20.64%
+[2026-11-22 14:43:34 UTC] Benchmarking real-time chunked streaming inference (160ms chunks) on RESPIN sample...
+[2026-11-22 14:47:29 UTC] --> Streaming RTF: 0.4063 (2.5x real-time) | Latency: 2346.49 ms/utt
+[2026-11-22 14:47:30 UTC] Full evaluation suite completed and logged into Sentinel successfully.
