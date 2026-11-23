@@ -1,0 +1,18 @@
+# Marathi Evaluation Dataset Configuration
+name: "marathi_eval"
+sample_rate: 16000
+feat_dim: 80
+datasets:
+  - name: "fleurs_mr"
+    split: "test"
+    target_lang: "mr"
+  - name: "kathbath_mr"
+    split: "test"
+    target_lang: "mr"
+  - name: "indicvoices_mr"
+    split: "test"
+    target_lang: "mr"
+causal_framing:
+  center: false
+  window_size_ms: 25
+  hop_size_ms: 10

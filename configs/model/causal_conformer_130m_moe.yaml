@@ -1,0 +1,26 @@
+# Causal Conformer 130M Sparse MoE Model Configuration
+name: "CausalConformer130M_MoE"
+architecture: "CausalStreamingASRModel"
+
+d_model: 512
+n_heads: 8
+ffn_expansion: 4
+num_layers: 12
+conv_kernel_size: 31
+feat_dim: 80
+vocab_size: 105
+enable_moe: true
+num_experts: 3
+moe_start_layer: 5
+sample_rate: 16000
+
+causal_settings:
+  causal_attention: true
+  causal_convolution: true
+  causal_subsampling: true
+  left_context_frames: 128
+  norm_type: "layer_norm"
+
+weights:
+  offline_checkpoint: "models/marathi-conformer-130m-moe/model.pt"
+  vocab_path: "models/marathi-conformer-130m-moe/vocab.json"

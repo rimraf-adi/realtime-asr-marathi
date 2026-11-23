@@ -1,0 +1,50 @@
+# ================================================================================
+# Experiment E2b: Dense Model Causal Fine-tuning (No Distillation)
+# ================================================================================
+# The 130M Dense model (WER 57.04%) underperforms MoE, so direct CTC fine-tuning
+# is used rather than distillation from the MoE teacher.
+# ================================================================================
+
+experiment_id: "E2b"
+experiment_name: "e2b_dense_finetune"
+description: "Direct causal CTC fine-tuning of 130M Dense Conformer (no teacher distillation)"
+
+student:
+  model_type: "causal_streaming"
+  config: "configs/model/causal_conformer_130m_dense.yaml"
+  init_from: "experiments/e1_3_full_causal_encoder/checkpoints/130m_dense_causal.pt"
+
+training:
+  steps: 50000
+  lr: 5.0e-5
+  min_lr: 5.0e-6
+  warmup_steps: 2000
+  batch_size: 16
+  grad_accum_steps: 4
+  optimizer: "adamw"
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  precision: "fp16"
+  seed: 42
+  scheduler: "cosine_with_warmup"
+
+data:
+  train_manifests:
+    - "d:/marathi-asr/data/vistaar_benchmarks/kathbath_train/marathi/manifest.json"
+    - "d:/marathi-asr/data/openslr64_marathi/manifest.json"
+  total_hours: 150.8
+  sample_rate: 16000
+  max_duration_s: 20.0
+  min_duration_s: 0.5
+  speed_perturb: [0.9, 1.0, 1.1]
+  spec_augment:
+    freq_masks: 2
+    freq_width: 27
+    time_masks: 10
+    time_width: 0.05
+
+evaluation:
+  eval_every_steps: 2000
+  datasets: ["fleurs_mr"]
+  metrics: ["wer", "cer"]
+  save_best_on: "wer"

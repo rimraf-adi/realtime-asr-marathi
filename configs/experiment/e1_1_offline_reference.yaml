@@ -1,0 +1,21 @@
+# Experiment E1.1: Original Offline Model Reference
+experiment_id: "E1.1"
+experiment_name: "e1_1_offline_reference"
+description: "Benchmark offline reference WER/CER and baseline latency for 130M MoE and Dense models"
+
+models:
+  - id: "130m_moe"
+    config: "configs/model/causal_conformer_130m_moe.yaml"
+    offline_checkpoint: "models/marathi-conformer-130m-moe/model.pt"
+  - id: "130m_dense"
+    config: "configs/model/causal_conformer_130m_dense.yaml"
+    offline_checkpoint: "models/marathi-conformer-130m-dense/model.pt"
+
+evaluation:
+  benchmark_source: "d:/marathi-asr/evals"
+  dataset: "fleurs_mr"
+  num_utterances: 1015
+  batch_sizes: [1, 16]
+
+reporting:
+  metrics: ["wer", "cer", "batch1_latency_ms", "batch1_rtf", "batch16_rtfx"]

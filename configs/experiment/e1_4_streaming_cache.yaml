@@ -1,0 +1,29 @@
+# Experiment E1.4: Real-Time Streaming Inference with State Caches
+experiment_id: "E1.4"
+experiment_name: "e1_4_streaming_cache"
+description: "Verify full-sequence vs chunked streaming equivalence (Test B) and measure chunk latency & RTF"
+
+models:
+  - id: "130m_moe"
+    config: "configs/model/causal_conformer_130m_moe.yaml"
+  - id: "130m_dense"
+    config: "configs/model/causal_conformer_130m_dense.yaml"
+
+streaming:
+  chunk_sizes_ms: [80, 160, 320, 640]
+  default_chunk_ms: 160
+  state_caching:
+    subsampling_cache: true
+    attention_kv_cache: true
+    depthwise_conv_cache: true
+    ctc_decoder_state: true
+
+verification:
+  test_b_chunk_parity:
+    tolerance: 1e-5
+    expected_result: "PASS (H_full ~= H_streaming)"
+
+benchmarks:
+  measure_latency: true
+  measure_rtf: true
+  measure_vram: true

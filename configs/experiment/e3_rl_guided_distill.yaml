@@ -1,0 +1,84 @@
+# ==============================================================================
+# Experiment E3: Causal Teacher-Guided Sequence RL + Distillation
+# ==============================================================================
+# Master Config compliant with SENTINEL.md
+#
+# Models:
+#   Teacher: Scaled Conformer-512 Sparse MoE (130M, best checkpoint d5621c61)
+#            RESPIN WER: 19.50%, KathBath WER: 29.41%
+#   Student: Causal Conformer-512 Streaming MoE (zero-lookahead, state caching)
+#
+# Methodology:
+#   1. Teacher Soft Logit Distillation (KL divergence at temp T=2.0)
+#   2. Sequence-Level GRPO with CER Advantage (1 - CER_k group normalized)
+#   3. Layer-Wise Representation Matching (Layers 4, 8, 12)
+#   4. Reference KL Trust Region vs Teacher to prevent policy divergence
+# ==============================================================================
+
+experiment_id: "E3"
+experiment_name: "e3_rl_guided_distill"
+description: "Causal Teacher-Guided Sequence RL (GRPO) + Multi-Exit Distillation for Streaming 130M MoE"
+
+teacher:
+  model_type: "conformer_sparse_moe"
+  checkpoint: "d:/marathi-asr/runs/scaled-conformer512-moe-3stage/checkpoints/stage3_vanilla_sft/best_model.pt"
+  checkpoint_sha256_prefix: "d5621c61"
+  freeze: true
+  target_metrics:
+    respin_aggregate_wer: 19.50
+    respin_cer: 4.29
+    kathbath_wer: 29.41
+
+student:
+  architecture: "CausalStreamingASRModel"
+  d_model: 512
+  n_heads: 8
+  ffn_expansion: 4
+  num_layers: 12
+  conv_kernel_size: 31
+  num_experts: 3
+  moe_start_layer: 5
+  vocab_size: 105
+  init_weights: "d:/realtime/models/marathi-conformer-130m-moe/model.pt"
+
+training:
+  batch_size: 16
+  gradient_accumulation_steps: 4
+  effective_batch_size: 64
+  learning_rate: 3.0e-5
+  min_learning_rate: 3.0e-6
+  warmup_steps: 2000
+  total_steps: 50000          # ~37.4 complete epochs over 150.8 hours
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  precision: "fp16"
+  seed: 42
+
+loss_weights:
+  alpha_ctc: 0.70
+  alpha_kd: 0.20
+  beta_grpo: 0.10
+  gamma_hidden: 0.00
+  kl_temperature: 2.0
+
+grpo:
+  group_size: 4
+  sampling_temperature: 1.0
+  epsilon_clip: 0.20
+  reward_metric: "cer"
+  advantage_norm: true
+
+data:
+  train_manifests:
+    - "d:/marathi-asr/data/vistaar_benchmarks/kathbath_train/marathi/manifest.json"
+    - "d:/marathi-asr/data/openslr64_marathi/manifest.json"
+  eval_manifest: "D:/dialect-norm/IISc_RESPIN_test_mr/IISc_RESPIN_test_mr/meta_test_mr.json"
+  eval_dir: "D:/dialect-norm/IISc_RESPIN_test_mr/IISc_RESPIN_test_mr"
+  sample_rate: 16000
+  max_duration_s: 15.0
+  min_duration_s: 0.8
+
+validation:
+  eval_every_steps: 1000
+  eval_batch_size: 16
+  streaming_chunk_sizes_ms: [160, 320]

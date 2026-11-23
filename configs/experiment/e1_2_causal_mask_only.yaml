@@ -1,0 +1,19 @@
+# Experiment E1.2: Original Model with Causal Masks Only (Immediate Conversion Loss)
+experiment_id: "E1.2"
+experiment_name: "e1_2_causal_mask_only"
+description: "Evaluate effect of applying causal attention masks without causal depthwise conv or causal subsampling"
+
+models:
+  - id: "130m_moe"
+    config: "configs/model/causal_conformer_130m_moe.yaml"
+  - id: "130m_dense"
+    config: "configs/model/causal_conformer_130m_dense.yaml"
+
+ablation:
+  causal_attention: true
+  causal_convolution: false  # Still symmetric same padding
+  causal_subsampling: false  # Still symmetric subsampling
+  per_frame_norm: false      # Still temporal GroupNorm
+
+tests:
+  future_perturbation_leak: true  # Should reveal future leaks due to non-causal conv/subsampling

@@ -1,0 +1,25 @@
+# Experiment E1.3: Fully Causalized Encoder
+experiment_id: "E1.3"
+experiment_name: "e1_3_full_causal_encoder"
+description: "Verify strictly causal architecture (Test A: Future Perturbation Test) across both 130M MoE and 130M Dense models"
+
+models:
+  - id: "130m_moe"
+    config: "configs/model/causal_conformer_130m_moe.yaml"
+  - id: "130m_dense"
+    config: "configs/model/causal_conformer_130m_dense.yaml"
+
+architecture:
+  causal_attention: true
+  causal_convolution: true
+  causal_subsampling: true
+  per_frame_norm: true
+  lookahead_frames: 0
+  left_context_frames: 128
+
+verification:
+  test_a_future_perturbation:
+    seq_len: 100
+    prefix_len: 50
+    tolerance: 1e-6
+    expected_result: "PASS (diff == 0.0)"

@@ -1,0 +1,15 @@
+# Master Sentinel Experiment Config (Hydra-compatible)
+defaults:
+  - model: causal_conformer_130m
+  - dataset: marathi_eval
+  - _self_
+
+experiment_name: "causal_conversion_130m"
+tracking:
+  backend: "mlflow"
+  experiment: "marathi_causal_streaming_130m"
+
+hardware:
+  device: "cuda"
+  precision: "fp16"
+  seed: 42

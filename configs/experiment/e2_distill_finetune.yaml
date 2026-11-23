@@ -1,0 +1,109 @@
+# ================================================================================
+# Experiment E2: Offline-to-Causal Knowledge Distillation + Fine-tuning
+# ================================================================================
+# Strategy: Use the offline 130M MoE (teacher, WER 36.74%) to distill causal
+# knowledge into the streaming causal model (student).
+#
+# Loss: L = alpha * L_CTC + (1-alpha) * L_KD + beta * L_hidden
+#   L_CTC:    standard CTC loss on ground-truth labels
+#   L_KD:     KL-divergence between teacher and student soft logits (temperature T)
+#   L_hidden: layer-wise MSE between teacher and student hidden representations
+#
+# Fine-tuning is strictly causal: attention masks, causal depthwise conv, causal
+# subsampling, per-frame LayerNorm, and frame-wise MoE routing are all enforced
+# during the entire training process, not just inference.
+# ================================================================================
+
+experiment_id: "E2"
+experiment_name: "e2_distill_finetune"
+description: "Knowledge Distillation from Offline 130M MoE teacher + causal fine-tuning of streaming student"
+
+teacher:
+  model_type: "offline"
+  config: "configs/model/causal_conformer_130m_moe.yaml"
+  checkpoint: "models/130m-moe-stage3-sft/best_model.pt"
+  reference_wer: 36.74
+  freeze: true  # teacher weights are never updated
+
+student:
+  model_type: "causal_streaming"
+  config: "configs/model/causal_conformer_130m_moe.yaml"
+  init_from: "experiments/e1_3_full_causal_encoder/checkpoints/130m_moe_causal.pt"
+
+distillation:
+  temperature: 2.0
+  alpha_ctc: 0.3        # weight on hard CTC target
+  alpha_kd: 0.5         # weight on soft KL-divergence from teacher
+  beta_hidden: 0.2      # weight on layer-wise hidden MSE alignment
+  hidden_match_layers: [4, 8, 12]  # align at exit layers
+  student_hidden_proj: false        # same d_model; no projection needed
+
+training:
+  # Phase 1: Distillation-dominant warm-up (teacher guides student)
+  phase1:
+    name: "distill_warmup"
+    steps: 15000
+    lr: 5.0e-5
+    warmup_steps: 1000
+    alpha_ctc: 0.2
+    alpha_kd: 0.6
+    beta_hidden: 0.2
+    batch_size: 16
+    grad_accum_steps: 4
+
+  # Phase 2: Balanced CTC + KD fine-tuning
+  phase2:
+    name: "balanced_finetune"
+    steps: 40000
+    lr: 3.0e-5
+    min_lr: 5.0e-6
+    alpha_ctc: 0.4
+    alpha_kd: 0.4
+    beta_hidden: 0.2
+    batch_size: 16
+    grad_accum_steps: 4
+
+  # Phase 3: CTC-dominant final polish (wean off teacher)
+  phase3:
+    name: "ctc_polish"
+    steps: 15000
+    lr: 1.0e-5
+    min_lr: 2.0e-6
+    alpha_ctc: 0.7
+    alpha_kd: 0.2
+    beta_hidden: 0.1
+    batch_size: 16
+    grad_accum_steps: 4
+
+  total_steps: 70000
+  optimizer: "adamw"
+  weight_decay: 0.01
+  max_grad_norm: 1.0
+  precision: "fp16"
+  seed: 42
+  scheduler: "cosine_with_warmup"
+
+data:
+  train_manifests:
+    - "d:/marathi-asr/data/vistaar_benchmarks/kathbath_train/marathi/manifest.json"
+    - "d:/marathi-asr/data/openslr64_marathi/manifest.json"
+  total_hours: 150.8
+  sample_rate: 16000
+  max_duration_s: 20.0
+  min_duration_s: 0.5
+  speed_perturb: [0.9, 1.0, 1.1]
+  spec_augment:
+    freq_masks: 2
+    freq_width: 27
+    time_masks: 10
+    time_width: 0.05  # proportion
+
+evaluation:
+  eval_every_steps: 2000
+  datasets: ["fleurs_mr", "kathbath_mr"]
+  metrics: ["wer", "cer"]
+  save_best_on: "wer"
+
+reporting:
+  log_every_steps: 25
+  plot_every_steps: 500
